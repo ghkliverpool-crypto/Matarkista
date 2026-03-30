@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from "react";
 
+import { useState, useEffect, useRef } from "react";
+ 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
-// Settu inn þínar Supabase upplýsingar hér:
 const SUPABASE_URL = "https://hmorgmxjcxyeawbiucyw.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_jEH66k44WA5ONh2TrEhejQ_3DahiTU5";
-
+ 
 // ─── SUPABASE CLIENT ──────────────────────────────────────────────────────────
 async function supabase(path, options = {}) {
   const url = `${SUPABASE_URL}/rest/v1${path}`;
@@ -25,7 +25,7 @@ async function supabase(path, options = {}) {
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
-
+ 
 async function authRequest(endpoint, body) {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/${endpoint}`, {
     method: "POST",
@@ -36,13 +36,36 @@ async function authRequest(endpoint, body) {
   if (!res.ok) throw new Error(data.error_description || data.msg || "Villa");
   return data;
 }
-
+ 
+// ─── IMAGE UPLOAD ─────────────────────────────────────────────────────────────
+async function uploadImage(file, token) {
+  const ext = file.name.split(".").pop();
+  const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const res = await fetch(
+    `${SUPABASE_URL}/storage/v1/object/recipe-images/${filename}`,
+    {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": file.type,
+      },
+      body: file,
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Myndarupphleðsla mistókst");
+  }
+  return `${SUPABASE_URL}/storage/v1/object/public/recipe-images/${filename}`;
+}
+ 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Jost:wght@300;400;500&display=swap');
-
+ 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+ 
   :root {
     --cream: #F5F0E8;
     --warm-white: #FBF8F3;
@@ -58,51 +81,38 @@ const css = `
     --shadow: 0 2px 20px rgba(74,55,40,0.08);
     --shadow-lg: 0 8px 40px rgba(74,55,40,0.15);
   }
-
+ 
   body { font-family: 'Jost', sans-serif; background: var(--cream); color: var(--text); }
-
   h1, h2, h3 { font-family: 'Cormorant Garamond', serif; font-weight: 600; }
-
   .app { min-height: 100vh; }
-
-  /* NAV */
+ 
   nav {
-    background: var(--warm-white);
-    border-bottom: 1px solid var(--border);
-    padding: 0 2rem;
-    display: flex; align-items: center; justify-content: space-between;
-    height: 64px; position: sticky; top: 0; z-index: 100;
-    box-shadow: var(--shadow);
+    background: var(--warm-white); border-bottom: 1px solid var(--border);
+    padding: 0 2rem; display: flex; align-items: center; justify-content: space-between;
+    height: 64px; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow);
   }
   .nav-logo {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.6rem; font-style: italic;
-    color: var(--dark-brown); text-decoration: none;
-    letter-spacing: 0.02em;
+    font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-style: italic;
+    color: var(--dark-brown); text-decoration: none; letter-spacing: 0.02em; cursor: pointer;
   }
   .nav-logo span { color: var(--rust); }
   .nav-actions { display: flex; gap: 0.75rem; align-items: center; }
   .btn {
-    padding: 0.5rem 1.25rem; border-radius: 2px; border: none;
-    cursor: pointer; font-family: 'Jost', sans-serif;
-    font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase;
-    transition: all 0.2s; font-weight: 500;
+    padding: 0.5rem 1.25rem; border-radius: 2px; border: none; cursor: pointer;
+    font-family: 'Jost', sans-serif; font-size: 0.85rem; letter-spacing: 0.08em;
+    text-transform: uppercase; transition: all 0.2s; font-weight: 500;
   }
   .btn-primary { background: var(--dark-brown); color: var(--cream); }
   .btn-primary:hover { background: var(--brown); }
-  .btn-ghost {
-    background: transparent; color: var(--text-muted);
-    border: 1px solid var(--border);
-  }
+  .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
   .btn-ghost:hover { border-color: var(--brown); color: var(--brown); }
   .btn-sm { padding: 0.35rem 0.9rem; font-size: 0.78rem; }
   .btn-danger { background: var(--rust); color: white; }
-
-  /* HERO */
+ 
   .hero {
     background: linear-gradient(135deg, var(--dark-brown) 0%, #6B4C38 100%);
-    color: var(--cream); padding: 5rem 2rem;
-    text-align: center; position: relative; overflow: hidden;
+    color: var(--cream); padding: 5rem 2rem; text-align: center;
+    position: relative; overflow: hidden;
   }
   .hero::before {
     content: ''; position: absolute; inset: 0;
@@ -110,85 +120,57 @@ const css = `
   }
   .hero h1 { font-size: 3.5rem; font-style: italic; margin-bottom: 1rem; }
   .hero p { font-size: 1.1rem; opacity: 0.8; font-weight: 300; }
-
-  /* MAIN */
+ 
   .main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-
-  /* FILTERS */
-  .filters {
-    display: flex; gap: 0.75rem; flex-wrap: wrap;
-    margin-bottom: 2rem; align-items: center;
-  }
+ 
+  .filters { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem; align-items: center; }
   .filter-btn {
-    padding: 0.4rem 1rem; border-radius: 20px;
-    border: 1px solid var(--border); background: var(--warm-white);
-    cursor: pointer; font-size: 0.82rem; color: var(--text-muted);
-    transition: all 0.2s; font-family: 'Jost', sans-serif;
+    padding: 0.4rem 1rem; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--warm-white); cursor: pointer; font-size: 0.82rem;
+    color: var(--text-muted); transition: all 0.2s; font-family: 'Jost', sans-serif;
     letter-spacing: 0.05em;
   }
-  .filter-btn.active, .filter-btn:hover {
-    background: var(--dark-brown); color: var(--cream); border-color: transparent;
-  }
+  .filter-btn.active, .filter-btn:hover { background: var(--dark-brown); color: var(--cream); border-color: transparent; }
   .search-wrap { margin-left: auto; }
   .search-input {
-    padding: 0.4rem 1rem; border: 1px solid var(--border);
-    border-radius: 20px; background: var(--warm-white);
-    font-family: 'Jost', sans-serif; font-size: 0.85rem;
-    color: var(--text); width: 220px;
+    padding: 0.4rem 1rem; border: 1px solid var(--border); border-radius: 20px;
+    background: var(--warm-white); font-family: 'Jost', sans-serif;
+    font-size: 0.85rem; color: var(--text); width: 220px;
   }
   .search-input:focus { outline: none; border-color: var(--brown); }
-
-  /* GRID */
-  .recipe-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
-  }
-
-  /* CARD */
+ 
+  .recipe-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
+ 
   .recipe-card {
-    background: var(--warm-white); border-radius: 4px;
-    overflow: hidden; box-shadow: var(--shadow);
-    transition: transform 0.25s, box-shadow 0.25s; cursor: pointer;
-    border: 1px solid var(--border);
+    background: var(--warm-white); border-radius: 4px; overflow: hidden;
+    box-shadow: var(--shadow); transition: transform 0.25s, box-shadow 0.25s;
+    cursor: pointer; border: 1px solid var(--border);
   }
   .recipe-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
   .card-img {
-    width: 100%; height: 200px; object-fit: cover;
-    background: var(--sand); display: flex; align-items: center;
-    justify-content: center; color: var(--tan); font-size: 3rem;
+    width: 100%; height: 200px; background: var(--sand);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--tan); font-size: 3rem; overflow: hidden;
   }
   .card-img img { width: 100%; height: 100%; object-fit: cover; }
   .card-body { padding: 1.25rem; }
-  .card-cat {
-    font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--rust); font-weight: 500; margin-bottom: 0.4rem;
-  }
+  .card-cat { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rust); font-weight: 500; margin-bottom: 0.4rem; }
   .card-title { font-size: 1.35rem; margin-bottom: 0.5rem; line-height: 1.3; }
-  .card-meta {
-    display: flex; gap: 1rem; font-size: 0.8rem; color: var(--text-muted);
-    margin-bottom: 0.75rem;
-  }
+  .card-meta { display: flex; gap: 1rem; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem; }
   .card-meta span { display: flex; align-items: center; gap: 0.3rem; }
   .stars { color: var(--brown); letter-spacing: -2px; font-size: 0.9rem; }
   .rating-info { font-size: 0.78rem; color: var(--text-muted); }
-
-  /* MODAL OVERLAY */
+ 
   .overlay {
-    position: fixed; inset: 0; background: rgba(44,31,20,0.6);
-    z-index: 200; display: flex; align-items: flex-start;
-    justify-content: center; padding: 2rem 1rem; overflow-y: auto;
-    backdrop-filter: blur(3px);
+    position: fixed; inset: 0; background: rgba(44,31,20,0.6); z-index: 200;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 2rem 1rem; overflow-y: auto; backdrop-filter: blur(3px);
   }
   .modal {
     background: var(--warm-white); width: 100%; max-width: 720px;
-    border-radius: 4px; overflow: hidden; position: relative;
-    animation: slideUp 0.3s ease;
+    border-radius: 4px; overflow: hidden; position: relative; animation: slideUp 0.3s ease;
   }
-  @keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
   .modal-close {
     position: absolute; top: 1rem; right: 1rem; z-index: 10;
     background: rgba(255,255,255,0.9); border: none; cursor: pointer;
@@ -198,173 +180,100 @@ const css = `
   }
   .modal-close:hover { background: white; color: var(--text); }
   .modal-hero-img {
-    width: 100%; height: 300px; object-fit: cover;
-    background: var(--sand); display: flex; align-items: center;
-    justify-content: center; color: var(--tan); font-size: 4rem;
+    width: 100%; height: 300px; background: var(--sand);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--tan); font-size: 4rem; overflow: hidden;
   }
   .modal-hero-img img { width: 100%; height: 100%; object-fit: cover; }
   .modal-body { padding: 2rem; }
-  .modal-cat {
-    font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase;
-    color: var(--rust); font-weight: 500; margin-bottom: 0.5rem;
-  }
+  .modal-cat { font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--rust); font-weight: 500; margin-bottom: 0.5rem; }
   .modal-title { font-size: 2.2rem; margin-bottom: 0.75rem; }
   .modal-meta {
-    display: flex; gap: 1.5rem; flex-wrap: wrap;
-    font-size: 0.85rem; color: var(--text-muted);
-    padding: 1rem 0; border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border); margin: 1rem 0;
+    display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-muted);
+    padding: 1rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin: 1rem 0;
   }
   .modal-meta span { display: flex; align-items: center; gap: 0.4rem; }
   .modal-desc { color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.7; }
-  .section-title {
-    font-size: 1.3rem; font-style: italic; margin-bottom: 0.75rem;
-    color: var(--dark-brown);
-  }
-  .ingredients-list {
-    list-style: none; margin-bottom: 1.5rem;
-  }
-  .ingredients-list li {
-    padding: 0.45rem 0; border-bottom: 1px solid var(--border);
-    font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;
-  }
-  .ingredients-list li::before {
-    content: '·'; color: var(--rust); font-size: 1.2rem; line-height: 1;
-  }
+  .section-title { font-size: 1.3rem; font-style: italic; margin-bottom: 0.75rem; color: var(--dark-brown); }
+  .ingredients-list { list-style: none; margin-bottom: 1.5rem; }
+  .ingredients-list li { padding: 0.45rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; }
+  .ingredients-list li::before { content: '·'; color: var(--rust); font-size: 1.2rem; line-height: 1; }
   .steps-list { list-style: none; margin-bottom: 1.5rem; }
-  .steps-list li {
-    padding: 0.75rem 0 0.75rem 2.5rem; border-bottom: 1px solid var(--border);
-    position: relative; font-size: 0.9rem; line-height: 1.6;
-  }
-  .steps-list li::before {
-    content: attr(data-n); position: absolute; left: 0; top: 0.75rem;
-    font-family: 'Cormorant Garamond', serif; font-size: 1.3rem;
-    color: var(--tan); font-weight: 600;
-  }
-
-  /* REVIEWS */
+  .steps-list li { padding: 0.75rem 0 0.75rem 2.5rem; border-bottom: 1px solid var(--border); position: relative; font-size: 0.9rem; line-height: 1.6; }
+  .steps-list li::before { content: attr(data-n); position: absolute; left: 0; top: 0.75rem; font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; color: var(--tan); font-weight: 600; }
+ 
   .reviews-section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
   .review-form { background: var(--cream); padding: 1.25rem; border-radius: 4px; margin-bottom: 1.5rem; }
   .star-picker { display: flex; gap: 0.25rem; margin-bottom: 0.75rem; }
-  .star-btn {
-    background: none; border: none; font-size: 1.5rem; cursor: pointer;
-    color: var(--tan); transition: color 0.1s; padding: 0;
-  }
+  .star-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--tan); transition: color 0.1s; padding: 0; }
   .star-btn.active { color: var(--brown); }
-  .review-textarea {
-    width: 100%; padding: 0.75rem; border: 1px solid var(--border);
-    border-radius: 2px; background: var(--warm-white);
-    font-family: 'Jost', sans-serif; font-size: 0.9rem; resize: vertical;
-    min-height: 80px; color: var(--text);
-  }
+  .review-textarea { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 2px; background: var(--warm-white); font-family: 'Jost', sans-serif; font-size: 0.9rem; resize: vertical; min-height: 80px; color: var(--text); }
   .review-textarea:focus { outline: none; border-color: var(--brown); }
-  .review-item {
-    padding: 1rem 0; border-bottom: 1px solid var(--border);
-  }
-  .review-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 0.4rem;
-  }
+  .review-item { padding: 1rem 0; border-bottom: 1px solid var(--border); }
+  .review-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem; }
   .reviewer-name { font-weight: 500; font-size: 0.9rem; }
   .review-date { font-size: 0.75rem; color: var(--text-muted); }
   .review-text { font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; }
-
-  /* AUTH MODAL */
+ 
   .auth-modal { max-width: 420px; padding: 2.5rem; }
   .auth-title { font-size: 2rem; font-style: italic; margin-bottom: 0.5rem; text-align: center; }
   .auth-sub { text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 2rem; }
   .form-group { margin-bottom: 1rem; }
-  .form-label {
-    display: block; font-size: 0.78rem; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.4rem;
-  }
-  .form-input {
-    width: 100%; padding: 0.65rem 1rem; border: 1px solid var(--border);
-    border-radius: 2px; background: var(--cream);
-    font-family: 'Jost', sans-serif; font-size: 0.9rem; color: var(--text);
-  }
+  .form-label { display: block; font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.4rem; }
+  .form-input { width: 100%; padding: 0.65rem 1rem; border: 1px solid var(--border); border-radius: 2px; background: var(--cream); font-family: 'Jost', sans-serif; font-size: 0.9rem; color: var(--text); }
   .form-input:focus { outline: none; border-color: var(--brown); }
-  .form-select {
-    width: 100%; padding: 0.65rem 1rem; border: 1px solid var(--border);
-    border-radius: 2px; background: var(--cream);
-    font-family: 'Jost', sans-serif; font-size: 0.9rem; color: var(--text);
-  }
-  .form-textarea {
-    width: 100%; padding: 0.65rem 1rem; border: 1px solid var(--border);
-    border-radius: 2px; background: var(--cream);
-    font-family: 'Jost', sans-serif; font-size: 0.9rem; color: var(--text);
-    resize: vertical; min-height: 80px;
-  }
+  .form-select { width: 100%; padding: 0.65rem 1rem; border: 1px solid var(--border); border-radius: 2px; background: var(--cream); font-family: 'Jost', sans-serif; font-size: 0.9rem; color: var(--text); }
+  .form-textarea { width: 100%; padding: 0.65rem 1rem; border: 1px solid var(--border); border-radius: 2px; background: var(--cream); font-family: 'Jost', sans-serif; font-size: 0.9rem; color: var(--text); resize: vertical; min-height: 80px; }
   .form-textarea:focus, .form-select:focus { outline: none; border-color: var(--brown); }
-  .auth-switch {
-    text-align: center; margin-top: 1.25rem;
-    font-size: 0.85rem; color: var(--text-muted);
-  }
-  .auth-switch button {
-    background: none; border: none; color: var(--rust); cursor: pointer;
-    font-family: 'Jost', sans-serif; font-size: 0.85rem; text-decoration: underline;
-  }
-  .error-msg {
-    background: #FDF0EC; border: 1px solid #E8B4A0; color: var(--rust);
-    padding: 0.65rem 1rem; border-radius: 2px; font-size: 0.85rem; margin-bottom: 1rem;
-  }
-  .success-msg {
-    background: #EEF4EE; border: 1px solid #A8C4A8; color: var(--forest);
-    padding: 0.65rem 1rem; border-radius: 2px; font-size: 0.85rem; margin-bottom: 1rem;
-  }
-
-  /* ADD RECIPE */
+  .auth-switch { text-align: center; margin-top: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+  .auth-switch button { background: none; border: none; color: var(--rust); cursor: pointer; font-family: 'Jost', sans-serif; font-size: 0.85rem; text-decoration: underline; }
+  .error-msg { background: #FDF0EC; border: 1px solid #E8B4A0; color: var(--rust); padding: 0.65rem 1rem; border-radius: 2px; font-size: 0.85rem; margin-bottom: 1rem; }
+  .success-msg { background: #EEF4EE; border: 1px solid #A8C4A8; color: var(--forest); padding: 0.65rem 1rem; border-radius: 2px; font-size: 0.85rem; margin-bottom: 1rem; }
+ 
   .add-recipe-modal { max-width: 680px; padding: 2.5rem; }
   .add-title { font-size: 2rem; font-style: italic; margin-bottom: 2rem; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
   .ingredient-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
   .ingredient-row .form-input { flex: 1; }
-  .add-row-btn {
-    background: none; border: 1px dashed var(--border); border-radius: 2px;
-    padding: 0.5rem; cursor: pointer; color: var(--text-muted); font-size: 0.85rem;
-    width: 100%; margin-top: 0.5rem; font-family: 'Jost', sans-serif;
-    transition: all 0.2s;
-  }
+  .add-row-btn { background: none; border: 1px dashed var(--border); border-radius: 2px; padding: 0.5rem; cursor: pointer; color: var(--text-muted); font-size: 0.85rem; width: 100%; margin-top: 0.5rem; font-family: 'Jost', sans-serif; transition: all 0.2s; }
   .add-row-btn:hover { border-color: var(--brown); color: var(--brown); }
-  .remove-btn {
-    background: none; border: none; cursor: pointer; color: var(--tan);
-    font-size: 1.1rem; padding: 0 0.25rem; transition: color 0.2s;
-  }
+  .remove-btn { background: none; border: none; cursor: pointer; color: var(--tan); font-size: 1.1rem; padding: 0 0.25rem; transition: color 0.2s; }
   .remove-btn:hover { color: var(--rust); }
-
-  /* UPLOAD / JSON */
-  .json-paste-area {
-    width: 100%; padding: 0.75rem; border: 1px dashed var(--border);
-    border-radius: 2px; background: var(--cream); min-height: 120px;
-    font-family: 'Jost', sans-serif; font-size: 0.82rem; resize: vertical;
-    color: var(--text);
+ 
+  /* IMAGE UPLOAD */
+  .img-upload-area {
+    border: 2px dashed var(--border); border-radius: 4px; padding: 1.5rem;
+    text-align: center; cursor: pointer; transition: all 0.2s;
+    background: var(--cream); position: relative;
   }
-
-  /* TOAST */
-  .toast {
-    position: fixed; bottom: 2rem; right: 2rem; z-index: 9999;
-    background: var(--dark-brown); color: var(--cream);
-    padding: 0.75rem 1.5rem; border-radius: 2px; font-size: 0.88rem;
-    animation: fadeIn 0.3s ease;
-    box-shadow: var(--shadow-lg);
+  .img-upload-area:hover { border-color: var(--brown); background: var(--sand); }
+  .img-upload-area.has-image { padding: 0; border-style: solid; }
+  .img-upload-area input[type=file] { display: none; }
+  .img-preview { width: 100%; height: 200px; object-fit: cover; border-radius: 2px; display: block; }
+  .img-upload-label { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; display: block; }
+  .img-upload-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+  .img-change-btn {
+    position: absolute; bottom: 0.5rem; right: 0.5rem;
+    background: rgba(74,55,40,0.85); color: white; border: none;
+    padding: 0.3rem 0.7rem; border-radius: 2px; font-size: 0.75rem;
+    cursor: pointer; font-family: 'Jost', sans-serif;
   }
+  .uploading-indicator { font-size: 0.82rem; color: var(--brown); margin-top: 0.4rem; }
+ 
+  .json-paste-area { width: 100%; padding: 0.75rem; border: 1px dashed var(--border); border-radius: 2px; background: var(--cream); min-height: 120px; font-family: 'Jost', sans-serif; font-size: 0.82rem; resize: vertical; color: var(--text); }
+ 
+  .toast { position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; background: var(--dark-brown); color: var(--cream); padding: 0.75rem 1.5rem; border-radius: 2px; font-size: 0.88rem; animation: fadeIn 0.3s ease; box-shadow: var(--shadow-lg); }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-
+ 
   .loading { text-align: center; padding: 4rem; color: var(--text-muted); font-style: italic; }
   .empty { text-align: center; padding: 4rem; color: var(--text-muted); }
   .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
   .mt-1 { margin-top: 0.5rem; }
   .mt-2 { margin-top: 1rem; }
-  .flex-between { display: flex; justify-content: space-between; align-items: center; }
-  .gap-1 { gap: 0.5rem; }
-  .user-badge {
-    font-size: 0.82rem; color: var(--text-muted);
-    display: flex; align-items: center; gap: 0.5rem;
-  }
+  .user-badge { font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; }
   .user-badge strong { color: var(--dark-brown); }
 `;
-
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
+ 
 function Stars({ rating, max = 5 }) {
   return (
     <span className="stars">
@@ -374,31 +283,78 @@ function Stars({ rating, max = 5 }) {
     </span>
   );
 }
-
+ 
 function Toast({ msg }) {
   return <div className="toast">{msg}</div>;
 }
-
+ 
 const CATEGORIES = ["Allt", "Forréttur", "Aðalréttur", "Meðlæti", "Súpa", "Eftirrétt", "Bakkelsi", "Drykkur"];
-
+ 
+// ─── IMAGE UPLOAD COMPONENT ───────────────────────────────────────────────────
+function ImageUpload({ token, value, onChange }) {
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState(value || "");
+  const inputRef = useRef();
+ 
+  async function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    // Show local preview instantly
+    const localUrl = URL.createObjectURL(file);
+    setPreview(localUrl);
+    setUploading(true);
+    try {
+      const url = await uploadImage(file, token);
+      setPreview(url);
+      onChange(url);
+    } catch (err) {
+      alert("Villa við upphleðslu myndar: " + err.message);
+      setPreview(value || "");
+    }
+    setUploading(false);
+  }
+ 
+  return (
+    <div
+      className={`img-upload-area ${preview ? "has-image" : ""}`}
+      onClick={() => inputRef.current.click()}
+    >
+      <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} />
+      {preview ? (
+        <>
+          <img src={preview} alt="Forskoðun" className="img-preview" />
+          <button className="img-change-btn" onClick={e => { e.stopPropagation(); inputRef.current.click(); }}>
+            Skipta um mynd
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="img-upload-icon">📷</div>
+          <span className="img-upload-label">Smelltu til að velja mynd</span>
+        </>
+      )}
+      {uploading && <div className="uploading-indicator">Hleð upp mynd...</div>}
+    </div>
+  );
+}
+ 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState("home"); // home | auth | add | recipe
+  const [view, setView] = useState("home");
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [toast, setToast] = useState(null);
   const [filter, setFilter] = useState("Allt");
   const [search, setSearch] = useState("");
-
+ 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
-
-  // Load session from localStorage
+ 
   useEffect(() => {
     const saved = localStorage.getItem("uppskriftir_session");
     if (saved) {
@@ -407,37 +363,36 @@ export default function App() {
     }
     fetchRecipes();
   }, []);
-
+ 
   async function fetchRecipes() {
     setLoading(true);
     try {
       const data = await supabase("/recipes?select=*&order=created_at.desc");
       setRecipes(data || []);
     } catch (e) {
-      // Demo mode - show sample data
       setRecipes(DEMO_RECIPES);
     }
     setLoading(false);
   }
-
+ 
   function logout() {
     localStorage.removeItem("uppskriftir_session");
     setUser(null); setToken(null);
     showToast("Útskráðu þig!");
   }
-
+ 
   const filtered = recipes.filter(r => {
     const matchCat = filter === "Allt" || r.category === filter;
     const matchSearch = !search || r.title.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
-
+ 
   return (
     <>
       <style>{css}</style>
       <div className="app">
         <nav>
-          <span className="nav-logo" onClick={() => setView("home")} style={{ cursor: "pointer" }}>
+          <span className="nav-logo" onClick={() => setView("home")}>
             eldhús<span>·</span>mín
           </span>
           <div className="nav-actions">
@@ -455,7 +410,7 @@ export default function App() {
             )}
           </div>
         </nav>
-
+ 
         {view === "home" && (
           <>
             <div className="hero">
@@ -489,7 +444,7 @@ export default function App() {
             </div>
           </>
         )}
-
+ 
         {view === "auth" && (
           <div className="overlay" onClick={() => setView("home")}>
             <div className="modal auth-modal" onClick={e => e.stopPropagation()}>
@@ -501,7 +456,7 @@ export default function App() {
             </div>
           </div>
         )}
-
+ 
         {view === "add" && user && (
           <div className="overlay" onClick={() => setView("home")}>
             <div className="modal add-recipe-modal" onClick={e => e.stopPropagation()}>
@@ -512,26 +467,25 @@ export default function App() {
             </div>
           </div>
         )}
-
+ 
         {view === "recipe" && selectedRecipe && (
           <div className="overlay" onClick={() => setView("home")}>
             <div className="modal" onClick={e => e.stopPropagation()}>
               <button className="modal-close" onClick={() => setView("home")}>✕</button>
               <RecipeDetail
                 recipe={selectedRecipe} token={token} user={user}
-                onUpdate={fetchRecipes}
-                showToast={showToast}
+                onUpdate={fetchRecipes} showToast={showToast}
               />
             </div>
           </div>
         )}
-
+ 
         {toast && <Toast msg={toast} />}
       </div>
     </>
   );
 }
-
+ 
 // ─── RECIPE CARD ──────────────────────────────────────────────────────────────
 function RecipeCard({ recipe, onClick }) {
   const avg = recipe.avg_rating || 0;
@@ -558,7 +512,7 @@ function RecipeCard({ recipe, onClick }) {
     </div>
   );
 }
-
+ 
 // ─── RECIPE DETAIL ────────────────────────────────────────────────────────────
 function RecipeDetail({ recipe, token, user, onUpdate, showToast }) {
   const [reviews, setReviews] = useState([]);
@@ -566,16 +520,16 @@ function RecipeDetail({ recipe, token, user, onUpdate, showToast }) {
   const [myReview, setMyReview] = useState("");
   const [hover, setHover] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-
+ 
   useEffect(() => { loadReviews(); }, [recipe.id]);
-
+ 
   async function loadReviews() {
     try {
       const data = await supabase(`/reviews?recipe_id=eq.${recipe.id}&select=*&order=created_at.desc`);
       setReviews(data || []);
     } catch { setReviews([]); }
   }
-
+ 
   async function submitReview() {
     if (!myRating) return;
     setSubmitting(true);
@@ -594,10 +548,10 @@ function RecipeDetail({ recipe, token, user, onUpdate, showToast }) {
     } catch (e) { showToast("Villa: " + e.message); }
     setSubmitting(false);
   }
-
+ 
   const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : (recipe.ingredients || "").split("\n").filter(Boolean);
   const steps = Array.isArray(recipe.steps) ? recipe.steps : (recipe.steps || "").split("\n").filter(Boolean);
-
+ 
   return (
     <>
       <div className="modal-hero-img">
@@ -613,27 +567,26 @@ function RecipeDetail({ recipe, token, user, onUpdate, showToast }) {
           {recipe.difficulty && <span>📊 Erfiðleiki: <strong>{recipe.difficulty}</strong></span>}
         </div>
         {recipe.description && <p className="modal-desc">{recipe.description}</p>}
-
+ 
         <h3 className="section-title">Hráefni</h3>
         <ul className="ingredients-list">
           {ingredients.map((ing, i) => <li key={i}>{ing}</li>)}
         </ul>
-
+ 
         <h3 className="section-title">Leiðbeiningar</h3>
         <ol className="steps-list">
           {steps.map((step, i) => <li key={i} data-n={i + 1}>{step}</li>)}
         </ol>
-
+ 
         {recipe.notes && (
           <>
             <h3 className="section-title">Athugasemdir</h3>
             <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", lineHeight: 1.7, marginBottom: "1.5rem" }}>{recipe.notes}</p>
           </>
         )}
-
+ 
         <div className="reviews-section">
           <h3 className="section-title">Umsagnir ({reviews.length})</h3>
-
           {user ? (
             <div className="review-form">
               <p style={{ fontSize: "0.82rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "0.5rem" }}>Gefðu einkunn</p>
@@ -656,7 +609,6 @@ function RecipeDetail({ recipe, token, user, onUpdate, showToast }) {
               <em>Innskráðir notendur geta gefið uppskriftum einkunn.</em>
             </p>
           )}
-
           {reviews.map(r => (
             <div key={r.id} className="review-item">
               <div className="review-header">
@@ -669,14 +621,13 @@ function RecipeDetail({ recipe, token, user, onUpdate, showToast }) {
               {r.comment && <p className="review-text">{r.comment}</p>}
             </div>
           ))}
-
           {reviews.length === 0 && <p style={{ color: "var(--text-muted)", fontSize: "0.88rem" }}>Engar umsagnir enn.</p>}
         </div>
       </div>
     </>
   );
 }
-
+ 
 // ─── AUTH FORM ────────────────────────────────────────────────────────────────
 function AuthForm({ onSuccess }) {
   const [mode, setMode] = useState("login");
@@ -685,7 +636,7 @@ function AuthForm({ onSuccess }) {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
+ 
   async function submit() {
     setError(""); setLoading(true);
     try {
@@ -695,12 +646,11 @@ function AuthForm({ onSuccess }) {
       } else {
         await authRequest("signup", { email, password, data: { full_name: name } });
         setMode("login");
-        setError(""); // Show success
       }
     } catch (e) { setError(e.message); }
     setLoading(false);
   }
-
+ 
   return (
     <>
       <h2 className="auth-title">{mode === "login" ? "Innskrá" : "Nýskrá"}</h2>
@@ -734,14 +684,14 @@ function AuthForm({ onSuccess }) {
     </>
   );
 }
-
+ 
 // ─── ADD RECIPE FORM ──────────────────────────────────────────────────────────
 function AddRecipeForm({ token, userId, onSuccess }) {
-  const [tab, setTab] = useState("manual"); // manual | json
+  const [tab, setTab] = useState("manual");
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
   const [loading, setLoading] = useState(false);
-
+ 
   const [form, setForm] = useState({
     title: "", category: "Aðalréttur", description: "",
     prep_time: "", cook_time: "", servings: "", difficulty: "Miðlungs",
@@ -749,7 +699,7 @@ function AddRecipeForm({ token, userId, onSuccess }) {
     ingredients: [""],
     steps: [""],
   });
-
+ 
   function setField(k, v) { setForm(f => ({ ...f, [k]: v })); }
   function setIng(i, v) { setForm(f => { const a = [...f.ingredients]; a[i] = v; return { ...f, ingredients: a }; }); }
   function addIng() { setForm(f => ({ ...f, ingredients: [...f.ingredients, ""] })); }
@@ -757,7 +707,7 @@ function AddRecipeForm({ token, userId, onSuccess }) {
   function setStep(i, v) { setForm(f => { const a = [...f.steps]; a[i] = v; return { ...f, steps: a }; }); }
   function addStep() { setForm(f => ({ ...f, steps: [...f.steps, ""] })); }
   function removeStep(i) { setForm(f => ({ ...f, steps: f.steps.filter((_, j) => j !== i) })); }
-
+ 
   async function submit(data) {
     setLoading(true);
     try {
@@ -769,19 +719,18 @@ function AddRecipeForm({ token, userId, onSuccess }) {
     } catch (e) { alert("Villa: " + e.message); }
     setLoading(false);
   }
-
+ 
   function submitManual() {
-    const data = {
+    submit({
       ...form,
       ingredients: form.ingredients.filter(Boolean),
       steps: form.steps.filter(Boolean),
       prep_time: form.prep_time ? parseInt(form.prep_time) : null,
       cook_time: form.cook_time ? parseInt(form.cook_time) : null,
       servings: form.servings ? parseInt(form.servings) : null,
-    };
-    submit(data);
+    });
   }
-
+ 
   function submitJson() {
     setJsonError("");
     try {
@@ -789,7 +738,7 @@ function AddRecipeForm({ token, userId, onSuccess }) {
       submit(data);
     } catch (e) { setJsonError("Ógilt JSON: " + e.message); }
   }
-
+ 
   const CLAUDE_PROMPT = `Búðu til uppskrift á JSON sniði með þessum reitunum:
 {
   "title": "...",
@@ -804,7 +753,7 @@ function AddRecipeForm({ token, userId, onSuccess }) {
   "steps": ["Blandaðu hráefnin", "Steiktu í 10 mínútur", "..."],
   "notes": "Ráð og athugasemdir"
 }`;
-
+ 
   return (
     <>
       <h2 className="add-title">Bæta við uppskrift</h2>
@@ -812,7 +761,7 @@ function AddRecipeForm({ token, userId, onSuccess }) {
         <button className={`filter-btn ${tab === "manual" ? "active" : ""}`} onClick={() => setTab("manual")}>Handvirkt</button>
         <button className={`filter-btn ${tab === "json" ? "active" : ""}`} onClick={() => setTab("json")}>Frá Claude (JSON)</button>
       </div>
-
+ 
       {tab === "json" && (
         <div>
           <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem", lineHeight: 1.6 }}>
@@ -821,12 +770,22 @@ function AddRecipeForm({ token, userId, onSuccess }) {
           <code style={{ display: "block", background: "var(--sand)", padding: "0.75rem", borderRadius: "2px", fontSize: "0.78rem", marginBottom: "1rem", whiteSpace: "pre-wrap" }}>{CLAUDE_PROMPT}</code>
           {jsonError && <div className="error-msg">{jsonError}</div>}
           <textarea className="json-paste-area" placeholder="Límdu JSON uppskrift hér..." value={jsonText} onChange={e => setJsonText(e.target.value)} />
+          <div className="form-group mt-2">
+            <label className="form-label">Mynd við uppskrift</label>
+            <ImageUpload token={token} value="" onChange={url => {
+              try {
+                const parsed = JSON.parse(jsonText);
+                parsed.image_url = url;
+                setJsonText(JSON.stringify(parsed, null, 2));
+              } catch {}
+            }} />
+          </div>
           <button className="btn btn-primary mt-2" onClick={submitJson} disabled={loading || !jsonText.trim()}>
             {loading ? "Hleð inn..." : "Vista uppskrift"}
           </button>
         </div>
       )}
-
+ 
       {tab === "manual" && (
         <div>
           <div className="form-row">
@@ -840,6 +799,10 @@ function AddRecipeForm({ token, userId, onSuccess }) {
                 {CATEGORIES.filter(c => c !== "Allt").map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Mynd</label>
+            <ImageUpload token={token} value={form.image_url} onChange={url => setField("image_url", url)} />
           </div>
           <div className="form-group">
             <label className="form-label">Lýsing</label>
@@ -864,10 +827,6 @@ function AddRecipeForm({ token, userId, onSuccess }) {
                 <option>Auðvelt</option><option>Miðlungs</option><option>Erfitt</option>
               </select>
             </div>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Myndarslóð (URL)</label>
-            <input className="form-input" placeholder="https://..." value={form.image_url} onChange={e => setField("image_url", e.target.value)} />
           </div>
           <div className="form-group">
             <label className="form-label">Hráefni</label>
@@ -901,8 +860,8 @@ function AddRecipeForm({ token, userId, onSuccess }) {
     </>
   );
 }
-
-// ─── DEMO DATA (used if Supabase not configured) ───────────────────────────────
+ 
+// ─── DEMO DATA ────────────────────────────────────────────────────────────────
 const DEMO_RECIPES = [
   {
     id: 1, title: "Lambakjöt í ofni", category: "Aðalréttur",
