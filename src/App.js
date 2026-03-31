@@ -1,10 +1,9 @@
-
 import { useState, useEffect, useRef } from "react";
- 
+
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://hmorgmxjcxyeawbiucyw.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_jEH66k44WA5ONh2TrEhejQ_3DahiTU5";
- 
+
 // ─── SUPABASE CLIENT ──────────────────────────────────────────────────────────
 async function supabase(path, options = {}) {
   const url = `${SUPABASE_URL}/rest/v1${path}`;
@@ -25,7 +24,7 @@ async function supabase(path, options = {}) {
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
- 
+
 async function authRequest(endpoint, body) {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/${endpoint}`, {
     method: "POST",
@@ -36,7 +35,7 @@ async function authRequest(endpoint, body) {
   if (!res.ok) throw new Error(data.error_description || data.msg || "Villa");
   return data;
 }
- 
+
 // ─── IMAGE UPLOAD ─────────────────────────────────────────────────────────────
 async function uploadImage(file, token) {
   const ext = file.name.split(".").pop();
@@ -59,13 +58,13 @@ async function uploadImage(file, token) {
   }
   return `${SUPABASE_URL}/storage/v1/object/public/recipe-images/${filename}`;
 }
- 
+
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Jost:wght@300;400;500&display=swap');
- 
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
- 
+
   :root {
     --cream: #F5F0E8;
     --warm-white: #FBF8F3;
@@ -81,11 +80,11 @@ const css = `
     --shadow: 0 2px 20px rgba(74,55,40,0.08);
     --shadow-lg: 0 8px 40px rgba(74,55,40,0.15);
   }
- 
+
   body { font-family: 'Jost', sans-serif; background: var(--cream); color: var(--text); }
   h1, h2, h3 { font-family: 'Cormorant Garamond', serif; font-weight: 600; }
   .app { min-height: 100vh; }
- 
+
   nav {
     background: var(--warm-white); border-bottom: 1px solid var(--border);
     padding: 0 2rem; display: flex; align-items: center; justify-content: space-between;
@@ -108,7 +107,7 @@ const css = `
   .btn-ghost:hover { border-color: var(--brown); color: var(--brown); }
   .btn-sm { padding: 0.35rem 0.9rem; font-size: 0.78rem; }
   .btn-danger { background: var(--rust); color: white; }
- 
+
   .hero {
     background: linear-gradient(135deg, var(--dark-brown) 0%, #6B4C38 100%);
     color: var(--cream); padding: 5rem 2rem; text-align: center;
@@ -120,9 +119,9 @@ const css = `
   }
   .hero h1 { font-size: 3.5rem; font-style: italic; margin-bottom: 1rem; }
   .hero p { font-size: 1.1rem; opacity: 0.8; font-weight: 300; }
- 
+
   .main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
- 
+
   .filters { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem; align-items: center; }
   .filter-btn {
     padding: 0.4rem 1rem; border-radius: 20px; border: 1px solid var(--border);
@@ -138,9 +137,9 @@ const css = `
     font-size: 0.85rem; color: var(--text); width: 220px;
   }
   .search-input:focus { outline: none; border-color: var(--brown); }
- 
+
   .recipe-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
- 
+
   .recipe-card {
     background: var(--warm-white); border-radius: 4px; overflow: hidden;
     box-shadow: var(--shadow); transition: transform 0.25s, box-shadow 0.25s;
@@ -160,7 +159,7 @@ const css = `
   .card-meta span { display: flex; align-items: center; gap: 0.3rem; }
   .stars { color: var(--brown); letter-spacing: -2px; font-size: 0.9rem; }
   .rating-info { font-size: 0.78rem; color: var(--text-muted); }
- 
+
   .overlay {
     position: fixed; inset: 0; background: rgba(44,31,20,0.6); z-index: 200;
     display: flex; align-items: flex-start; justify-content: center;
@@ -201,7 +200,7 @@ const css = `
   .steps-list { list-style: none; margin-bottom: 1.5rem; }
   .steps-list li { padding: 0.75rem 0 0.75rem 2.5rem; border-bottom: 1px solid var(--border); position: relative; font-size: 0.9rem; line-height: 1.6; }
   .steps-list li::before { content: attr(data-n); position: absolute; left: 0; top: 0.75rem; font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; color: var(--tan); font-weight: 600; }
- 
+
   .reviews-section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
   .review-form { background: var(--cream); padding: 1.25rem; border-radius: 4px; margin-bottom: 1.5rem; }
   .star-picker { display: flex; gap: 0.25rem; margin-bottom: 0.75rem; }
@@ -214,7 +213,7 @@ const css = `
   .reviewer-name { font-weight: 500; font-size: 0.9rem; }
   .review-date { font-size: 0.75rem; color: var(--text-muted); }
   .review-text { font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; }
- 
+
   .auth-modal { max-width: 420px; padding: 2.5rem; }
   .auth-title { font-size: 2rem; font-style: italic; margin-bottom: 0.5rem; text-align: center; }
   .auth-sub { text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 2rem; }
@@ -229,7 +228,7 @@ const css = `
   .auth-switch button { background: none; border: none; color: var(--rust); cursor: pointer; font-family: 'Jost', sans-serif; font-size: 0.85rem; text-decoration: underline; }
   .error-msg { background: #FDF0EC; border: 1px solid #E8B4A0; color: var(--rust); padding: 0.65rem 1rem; border-radius: 2px; font-size: 0.85rem; margin-bottom: 1rem; }
   .success-msg { background: #EEF4EE; border: 1px solid #A8C4A8; color: var(--forest); padding: 0.65rem 1rem; border-radius: 2px; font-size: 0.85rem; margin-bottom: 1rem; }
- 
+
   .add-recipe-modal { max-width: 680px; padding: 2.5rem; }
   .add-title { font-size: 2rem; font-style: italic; margin-bottom: 2rem; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
@@ -239,7 +238,7 @@ const css = `
   .add-row-btn:hover { border-color: var(--brown); color: var(--brown); }
   .remove-btn { background: none; border: none; cursor: pointer; color: var(--tan); font-size: 1.1rem; padding: 0 0.25rem; transition: color 0.2s; }
   .remove-btn:hover { color: var(--rust); }
- 
+
   /* IMAGE UPLOAD */
   .img-upload-area {
     border: 2px dashed var(--border); border-radius: 4px; padding: 1.5rem;
@@ -259,12 +258,66 @@ const css = `
     cursor: pointer; font-family: 'Jost', sans-serif;
   }
   .uploading-indicator { font-size: 0.82rem; color: var(--brown); margin-top: 0.4rem; }
- 
+
+  /* SHOPPING LIST */
+  .cart-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 150;
+    background: var(--dark-brown); color: var(--cream);
+    padding: 0.85rem 2rem; display: flex; align-items: center;
+    justify-content: space-between; box-shadow: 0 -4px 20px rgba(74,55,40,0.2);
+    animation: slideUpBar 0.3s ease;
+  }
+  @keyframes slideUpBar { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .cart-bar-left { display: flex; align-items: center; gap: 1rem; }
+  .cart-count {
+    background: var(--rust); color: white; border-radius: 20px;
+    padding: 0.2rem 0.65rem; font-size: 0.8rem; font-weight: 500;
+  }
+  .cart-bar-title { font-size: 0.9rem; font-weight: 500; letter-spacing: 0.05em; }
+  .cart-bar-actions { display: flex; gap: 0.75rem; }
+
+  .card-select-btn {
+    position: absolute; top: 0.6rem; left: 0.6rem; z-index: 5;
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 2px solid white; background: rgba(255,255,255,0.85);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem; transition: all 0.15s; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  .card-select-btn.selected { background: var(--rust); border-color: var(--rust); color: white; }
+  .recipe-card { position: relative; }
+  .recipe-card.selected { outline: 2px solid var(--rust); outline-offset: 0; }
+
+  .shopping-modal { max-width: 560px; padding: 2rem; }
+  .shop-title { font-size: 2rem; font-style: italic; margin-bottom: 0.25rem; }
+  .shop-sub { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem; }
+  .shop-recipe-tag {
+    display: inline-block; background: var(--sand); border-radius: 20px;
+    padding: 0.25rem 0.75rem; font-size: 0.78rem; color: var(--brown);
+    margin: 0 0.3rem 0.5rem 0;
+  }
+  .shop-section { margin-bottom: 1.25rem; }
+  .shop-section-title {
+    font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--rust); font-weight: 500; margin-bottom: 0.5rem;
+    padding-bottom: 0.3rem; border-bottom: 1px solid var(--border);
+  }
+  .shop-item {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.4rem 0; border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  .shop-item input[type=checkbox] { accent-color: var(--brown); width: 16px; height: 16px; cursor: pointer; }
+  .shop-item.checked span { text-decoration: line-through; color: var(--text-muted); }
+  .shop-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  .btn-forest { background: var(--forest); color: white; }
+  .btn-forest:hover { background: #4A6648; }
+  .reminders-note { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.75rem; line-height: 1.5; }
+
   .json-paste-area { width: 100%; padding: 0.75rem; border: 1px dashed var(--border); border-radius: 2px; background: var(--cream); min-height: 120px; font-family: 'Jost', sans-serif; font-size: 0.82rem; resize: vertical; color: var(--text); }
- 
+
   .toast { position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; background: var(--dark-brown); color: var(--cream); padding: 0.75rem 1.5rem; border-radius: 2px; font-size: 0.88rem; animation: fadeIn 0.3s ease; box-shadow: var(--shadow-lg); }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
- 
+
   .loading { text-align: center; padding: 4rem; color: var(--text-muted); font-style: italic; }
   .empty { text-align: center; padding: 4rem; color: var(--text-muted); }
   .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
@@ -273,7 +326,7 @@ const css = `
   .user-badge { font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; }
   .user-badge strong { color: var(--dark-brown); }
 `;
- 
+
 function Stars({ rating, max = 5 }) {
   return (
     <span className="stars">
@@ -283,19 +336,32 @@ function Stars({ rating, max = 5 }) {
     </span>
   );
 }
- 
+
 function Toast({ msg }) {
   return <div className="toast">{msg}</div>;
 }
- 
+
 const CATEGORIES = ["Allt", "Forréttur", "Aðalréttur", "Meðlæti", "Súpa", "Eftirrétt", "Bakkelsi", "Drykkur"];
- 
+
+// ─── SHOPPING LIST HELPERS ────────────────────────────────────────────────────
+function mergeIngredients(recipes) {
+  // Group ingredients by recipe, return flat list with source
+  const items = [];
+  recipes.forEach(r => {
+    const ings = Array.isArray(r.ingredients)
+      ? r.ingredients
+      : (r.ingredients || "").split("\n").filter(Boolean);
+    ings.forEach(ing => items.push({ text: ing, from: r.title, checked: false, id: Math.random().toString(36).slice(2) }));
+  });
+  return items;
+}
+
 // ─── IMAGE UPLOAD COMPONENT ───────────────────────────────────────────────────
 function ImageUpload({ token, value, onChange }) {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(value || "");
   const inputRef = useRef();
- 
+
   async function handleFile(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -313,7 +379,7 @@ function ImageUpload({ token, value, onChange }) {
     }
     setUploading(false);
   }
- 
+
   return (
     <div
       className={`img-upload-area ${preview ? "has-image" : ""}`}
@@ -337,7 +403,7 @@ function ImageUpload({ token, value, onChange }) {
     </div>
   );
 }
- 
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser] = useState(null);
@@ -349,12 +415,14 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [filter, setFilter] = useState("Allt");
   const [search, setSearch] = useState("");
- 
+  const [cartRecipes, setCartRecipes] = useState([]); // ids of selected recipes
+  const [showShoppingList, setShowShoppingList] = useState(false);
+
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
- 
+
   useEffect(() => {
     const saved = localStorage.getItem("uppskriftir_session");
     if (saved) {
@@ -363,7 +431,7 @@ export default function App() {
     }
     fetchRecipes();
   }, []);
- 
+
   async function fetchRecipes() {
     setLoading(true);
     try {
@@ -374,19 +442,27 @@ export default function App() {
     }
     setLoading(false);
   }
- 
+
   function logout() {
     localStorage.removeItem("uppskriftir_session");
     setUser(null); setToken(null);
     showToast("Útskráðu þig!");
   }
- 
+
+  function toggleCart(id) {
+    setCartRecipes(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  }
+
+  const cartSelectedRecipes = recipes.filter(r => cartRecipes.includes(r.id));
+
   const filtered = recipes.filter(r => {
     const matchCat = filter === "Allt" || r.category === filter;
     const matchSearch = !search || r.title.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
- 
+
   return (
     <>
       <style>{css}</style>
@@ -410,7 +486,7 @@ export default function App() {
             )}
           </div>
         </nav>
- 
+
         {view === "home" && (
           <>
             <div className="hero">
@@ -437,14 +513,19 @@ export default function App() {
               ) : (
                 <div className="recipe-grid">
                   {filtered.map(r => (
-                    <RecipeCard key={r.id} recipe={r} onClick={() => { setSelectedRecipe(r); setView("recipe"); }} />
+                    <RecipeCard
+                      key={r.id} recipe={r}
+                      onClick={() => { setSelectedRecipe(r); setView("recipe"); }}
+                      inCart={cartRecipes.includes(r.id)}
+                      onToggleCart={e => { e.stopPropagation(); toggleCart(r.id); }}
+                    />
                   ))}
                 </div>
               )}
             </div>
           </>
         )}
- 
+
         {view === "auth" && (
           <div className="overlay" onClick={() => setView("home")}>
             <div className="modal auth-modal" onClick={e => e.stopPropagation()}>
@@ -456,7 +537,7 @@ export default function App() {
             </div>
           </div>
         )}
- 
+
         {view === "add" && user && (
           <div className="overlay" onClick={() => setView("home")}>
             <div className="modal add-recipe-modal" onClick={e => e.stopPropagation()}>
@@ -467,7 +548,7 @@ export default function App() {
             </div>
           </div>
         )}
- 
+
         {view === "recipe" && selectedRecipe && (
           <div className="overlay" onClick={() => setView("home")}>
             <div className="modal" onClick={e => e.stopPropagation()}>
@@ -475,23 +556,60 @@ export default function App() {
               <RecipeDetail
                 recipe={selectedRecipe} token={token} user={user}
                 onUpdate={fetchRecipes} showToast={showToast}
+                onAddToCart={() => { toggleCart(selectedRecipe.id); showToast("Bætt á innkaupalista!"); }}
+                inCart={cartRecipes.includes(selectedRecipe.id)}
               />
             </div>
           </div>
         )}
- 
+
+        {/* CART BAR */}
+        {cartRecipes.length > 0 && !showShoppingList && (
+          <div className="cart-bar">
+            <div className="cart-bar-left">
+              <span className="cart-count">{cartRecipes.length}</span>
+              <span className="cart-bar-title">uppskriftir valdar</span>
+            </div>
+            <div className="cart-bar-actions">
+              <button className="btn btn-ghost btn-sm" onClick={() => setCartRecipes([])}>Hreinsa</button>
+              <button className="btn btn-primary btn-sm" onClick={() => setShowShoppingList(true)}>🛒 Innkaupalisti</button>
+            </div>
+          </div>
+        )}
+
+        {/* SHOPPING LIST MODAL */}
+        {showShoppingList && (
+          <div className="overlay" onClick={() => setShowShoppingList(false)}>
+            <div className="modal shopping-modal" onClick={e => e.stopPropagation()}>
+              <button className="modal-close" onClick={() => setShowShoppingList(false)}>✕</button>
+              <ShoppingList
+                recipes={cartSelectedRecipes}
+                onClose={() => setShowShoppingList(false)}
+                showToast={showToast}
+              />
+            </div>
+          </div>
+        )}
+
         {toast && <Toast msg={toast} />}
       </div>
     </>
   );
 }
- 
+
 // ─── RECIPE CARD ──────────────────────────────────────────────────────────────
-function RecipeCard({ recipe, onClick }) {
+function RecipeCard({ recipe, onClick, inCart, onToggleCart }) {
   const avg = recipe.avg_rating || 0;
   const count = recipe.review_count || 0;
   return (
-    <div className="recipe-card" onClick={onClick}>
+    <div className={`recipe-card ${inCart ? "selected" : ""}`} onClick={onClick}>
+      <button
+        className={`card-select-btn ${inCart ? "selected" : ""}`}
+        onClick={onToggleCart}
+        title={inCart ? "Fjarlægja af lista" : "Bæta á innkaupalista"}
+      >
+        {inCart ? "✓" : "+"}
+      </button>
       <div className="card-img">
         {recipe.image_url ? <img src={recipe.image_url} alt={recipe.title} /> : "🍴"}
       </div>
@@ -512,24 +630,24 @@ function RecipeCard({ recipe, onClick }) {
     </div>
   );
 }
- 
+
 // ─── RECIPE DETAIL ────────────────────────────────────────────────────────────
-function RecipeDetail({ recipe, token, user, onUpdate, showToast }) {
+function RecipeDetail({ recipe, token, user, onUpdate, showToast, onAddToCart, inCart }) {
   const [reviews, setReviews] = useState([]);
   const [myRating, setMyRating] = useState(0);
   const [myReview, setMyReview] = useState("");
   const [hover, setHover] = useState(0);
   const [submitting, setSubmitting] = useState(false);
- 
+
   useEffect(() => { loadReviews(); }, [recipe.id]);
- 
+
   async function loadReviews() {
     try {
       const data = await supabase(`/reviews?recipe_id=eq.${recipe.id}&select=*&order=created_at.desc`);
       setReviews(data || []);
     } catch { setReviews([]); }
   }
- 
+
   async function submitReview() {
     if (!myRating) return;
     setSubmitting(true);
@@ -548,10 +666,10 @@ function RecipeDetail({ recipe, token, user, onUpdate, showToast }) {
     } catch (e) { showToast("Villa: " + e.message); }
     setSubmitting(false);
   }
- 
+
   const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : (recipe.ingredients || "").split("\n").filter(Boolean);
   const steps = Array.isArray(recipe.steps) ? recipe.steps : (recipe.steps || "").split("\n").filter(Boolean);
- 
+
   return (
     <>
       <div className="modal-hero-img">
@@ -560,6 +678,14 @@ function RecipeDetail({ recipe, token, user, onUpdate, showToast }) {
       <div className="modal-body">
         <div className="modal-cat">{recipe.category}</div>
         <h2 className="modal-title">{recipe.title}</h2>
+        <div style={{ marginBottom: "0.75rem" }}>
+          <button
+            className={`btn btn-sm ${inCart ? "btn-ghost" : "btn-forest"}`}
+            onClick={onAddToCart}
+          >
+            {inCart ? "✓ Á innkaupalista" : "🛒 Bæta á innkaupalista"}
+          </button>
+        </div>
         <div className="modal-meta">
           {recipe.prep_time && <span>⏱ Undirbúningstími: <strong>{recipe.prep_time} mín</strong></span>}
           {recipe.cook_time && <span>🔥 Eldunartími: <strong>{recipe.cook_time} mín</strong></span>}
@@ -567,24 +693,24 @@ function RecipeDetail({ recipe, token, user, onUpdate, showToast }) {
           {recipe.difficulty && <span>📊 Erfiðleiki: <strong>{recipe.difficulty}</strong></span>}
         </div>
         {recipe.description && <p className="modal-desc">{recipe.description}</p>}
- 
+
         <h3 className="section-title">Hráefni</h3>
         <ul className="ingredients-list">
           {ingredients.map((ing, i) => <li key={i}>{ing}</li>)}
         </ul>
- 
+
         <h3 className="section-title">Leiðbeiningar</h3>
         <ol className="steps-list">
           {steps.map((step, i) => <li key={i} data-n={i + 1}>{step}</li>)}
         </ol>
- 
+
         {recipe.notes && (
           <>
             <h3 className="section-title">Athugasemdir</h3>
             <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", lineHeight: 1.7, marginBottom: "1.5rem" }}>{recipe.notes}</p>
           </>
         )}
- 
+
         <div className="reviews-section">
           <h3 className="section-title">Umsagnir ({reviews.length})</h3>
           {user ? (
@@ -627,7 +753,7 @@ function RecipeDetail({ recipe, token, user, onUpdate, showToast }) {
     </>
   );
 }
- 
+
 // ─── AUTH FORM ────────────────────────────────────────────────────────────────
 function AuthForm({ onSuccess }) {
   const [mode, setMode] = useState("login");
@@ -636,7 +762,7 @@ function AuthForm({ onSuccess }) {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
- 
+
   async function submit() {
     setError(""); setLoading(true);
     try {
@@ -650,7 +776,7 @@ function AuthForm({ onSuccess }) {
     } catch (e) { setError(e.message); }
     setLoading(false);
   }
- 
+
   return (
     <>
       <h2 className="auth-title">{mode === "login" ? "Innskrá" : "Nýskrá"}</h2>
@@ -684,14 +810,14 @@ function AuthForm({ onSuccess }) {
     </>
   );
 }
- 
+
 // ─── ADD RECIPE FORM ──────────────────────────────────────────────────────────
 function AddRecipeForm({ token, userId, onSuccess }) {
   const [tab, setTab] = useState("manual");
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
   const [loading, setLoading] = useState(false);
- 
+
   const [form, setForm] = useState({
     title: "", category: "Aðalréttur", description: "",
     prep_time: "", cook_time: "", servings: "", difficulty: "Miðlungs",
@@ -699,7 +825,7 @@ function AddRecipeForm({ token, userId, onSuccess }) {
     ingredients: [""],
     steps: [""],
   });
- 
+
   function setField(k, v) { setForm(f => ({ ...f, [k]: v })); }
   function setIng(i, v) { setForm(f => { const a = [...f.ingredients]; a[i] = v; return { ...f, ingredients: a }; }); }
   function addIng() { setForm(f => ({ ...f, ingredients: [...f.ingredients, ""] })); }
@@ -707,7 +833,7 @@ function AddRecipeForm({ token, userId, onSuccess }) {
   function setStep(i, v) { setForm(f => { const a = [...f.steps]; a[i] = v; return { ...f, steps: a }; }); }
   function addStep() { setForm(f => ({ ...f, steps: [...f.steps, ""] })); }
   function removeStep(i) { setForm(f => ({ ...f, steps: f.steps.filter((_, j) => j !== i) })); }
- 
+
   async function submit(data) {
     setLoading(true);
     try {
@@ -719,7 +845,7 @@ function AddRecipeForm({ token, userId, onSuccess }) {
     } catch (e) { alert("Villa: " + e.message); }
     setLoading(false);
   }
- 
+
   function submitManual() {
     submit({
       ...form,
@@ -730,7 +856,7 @@ function AddRecipeForm({ token, userId, onSuccess }) {
       servings: form.servings ? parseInt(form.servings) : null,
     });
   }
- 
+
   function submitJson() {
     setJsonError("");
     try {
@@ -738,7 +864,7 @@ function AddRecipeForm({ token, userId, onSuccess }) {
       submit(data);
     } catch (e) { setJsonError("Ógilt JSON: " + e.message); }
   }
- 
+
   const CLAUDE_PROMPT = `Búðu til uppskrift á JSON sniði með þessum reitunum:
 {
   "title": "...",
@@ -753,7 +879,7 @@ function AddRecipeForm({ token, userId, onSuccess }) {
   "steps": ["Blandaðu hráefnin", "Steiktu í 10 mínútur", "..."],
   "notes": "Ráð og athugasemdir"
 }`;
- 
+
   return (
     <>
       <h2 className="add-title">Bæta við uppskrift</h2>
@@ -761,7 +887,7 @@ function AddRecipeForm({ token, userId, onSuccess }) {
         <button className={`filter-btn ${tab === "manual" ? "active" : ""}`} onClick={() => setTab("manual")}>Handvirkt</button>
         <button className={`filter-btn ${tab === "json" ? "active" : ""}`} onClick={() => setTab("json")}>Frá Claude (JSON)</button>
       </div>
- 
+
       {tab === "json" && (
         <div>
           <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem", lineHeight: 1.6 }}>
@@ -785,7 +911,7 @@ function AddRecipeForm({ token, userId, onSuccess }) {
           </button>
         </div>
       )}
- 
+
       {tab === "manual" && (
         <div>
           <div className="form-row">
@@ -860,7 +986,89 @@ function AddRecipeForm({ token, userId, onSuccess }) {
     </>
   );
 }
- 
+
+// ─── SHOPPING LIST ────────────────────────────────────────────────────────────
+function ShoppingList({ recipes, onClose, showToast }) {
+  const [items, setItems] = useState(() => mergeIngredients(recipes));
+
+  function toggleItem(id) {
+    setItems(prev => prev.map(it => it.id === id ? { ...it, checked: !it.checked } : it));
+  }
+
+  function copyToClipboard() {
+    const text = recipes.map(r => {
+      const ings = items.filter(i => i.from === r.title && !i.checked).map(i => "• " + i.text).join("\n");
+      return ings ? `${r.title}:\n${ings}` : null;
+    }).filter(Boolean).join("\n\n");
+    navigator.clipboard.writeText(text).then(() => showToast("Listi afritaður!"));
+  }
+
+  function openReminders() {
+    const unchecked = items.filter(i => !i.checked);
+    if (unchecked.length === 0) { showToast("Engir listar til að senda!"); return; }
+    // Build reminders:// URL — opens Apple Reminders with items
+    const listName = "Innkaup";
+    const itemsText = unchecked.map(i => encodeURIComponent(i.text)).join("&");
+    // Try x-apple-reminderkit URL scheme (works in Safari on iPhone)
+    const url = `reminders://x-callback-url/add?title=${encodeURIComponent(unchecked[0].text)}&list=${encodeURIComponent(listName)}`;
+    window.open(url, "_blank");
+    showToast("Opnar Reminders app...");
+  }
+
+  function openAllReminders() {
+    // Open each item one by one — user will be prompted per item
+    const unchecked = items.filter(i => !i.checked);
+    unchecked.forEach((item, idx) => {
+      setTimeout(() => {
+        window.open(`reminders://x-callback-url/add?title=${encodeURIComponent(item.text)}&list=${encodeURIComponent("Innkaup")}`, "_blank");
+      }, idx * 800);
+    });
+    showToast(`Opnar ${unchecked.length} færslur í Reminders...`);
+  }
+
+  // Group by recipe
+  const byRecipe = recipes.map(r => ({
+    recipe: r,
+    items: items.filter(i => i.from === r.title)
+  }));
+
+  const uncheckedCount = items.filter(i => !i.checked).length;
+
+  return (
+    <>
+      <h2 className="shop-title">🛒 Innkaupalisti</h2>
+      <p className="shop-sub">
+        {recipes.map(r => <span key={r.id} className="shop-recipe-tag">{r.title}</span>)}
+      </p>
+
+      {byRecipe.map(({ recipe, items: rItems }) => (
+        <div key={recipe.id} className="shop-section">
+          <div className="shop-section-title">{recipe.title}</div>
+          {rItems.map(item => (
+            <div key={item.id} className={`shop-item ${item.checked ? "checked" : ""}`}>
+              <input type="checkbox" checked={item.checked} onChange={() => toggleItem(item.id)} />
+              <span>{item.text}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      <div className="shop-actions">
+        <button className="btn btn-primary" onClick={copyToClipboard}>
+          📋 Afrita lista ({uncheckedCount})
+        </button>
+        <button className="btn btn-forest" onClick={openReminders}>
+          📱 Opna í Reminders
+        </button>
+      </div>
+      <p className="reminders-note">
+        <strong>iPhone leiðbeiningar:</strong> Smelltu á „Opna í Reminders" — virkar best í Safari á iPhone. 
+        Eða smelltu á „Afrita lista" og límdu inn í Reminders handvirkt.
+      </p>
+    </>
+  );
+}
+
 // ─── DEMO DATA ────────────────────────────────────────────────────────────────
 const DEMO_RECIPES = [
   {
