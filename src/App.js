@@ -558,6 +558,24 @@ export default function App() {
                 onUpdate={fetchRecipes} showToast={showToast}
                 onAddToCart={() => { toggleCart(selectedRecipe.id); showToast("Bætt á innkaupalista!"); }}
                 inCart={cartRecipes.includes(selectedRecipe.id)}
+                onDelete={async () => {
+                  try {
+                    await supabase(`/recipes?id=eq.${selectedRecipe.id}`, { method: "DELETE", token });
+                    setView("home"); fetchRecipes(); showToast("Uppskrift eytt!");
+                  } catch (e) { showToast("Villa: " + e.message); }
+                }}
+                onImageUpdate={async (file) => {
+                  try {
+                    const url = await uploadImage(file, token);
+                    await supabase(`/recipes?id=eq.${selectedRecipe.id}`, {
+                      method: "PATCH", token,
+                      headers: { Prefer: "return=representation" },
+                      body: JSON.stringify({ image_url: url })
+                    });
+                    setSelectedRecipe(r => ({ ...r, image_url: url }));
+                    fetchRecipes(); showToast("Mynd uppfærð!");
+                  } catch (e) { showToast("Villa: " + e.message); }
+                }}
               />
             </div>
           </div>
@@ -632,12 +650,17 @@ function RecipeCard({ recipe, onClick, inCart, onToggleCart }) {
 }
 
 // ─── RECIPE DETAIL ────────────────────────────────────────────────────────────
-function RecipeDetail({ recipe, token, user, onUpdate, showToast, onAddToCart, inCart }) {
+function RecipeDetail({ recipe, token, user, onUpdate, showToast, onAddToCart, inCart, onDelete, onImageUpdate }) {
   const [reviews, setReviews] = useState([]);
   const [myRating, setMyRating] = useState(0);
   const [myReview, setMyReview] = useState("");
   const [hover, setHover] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const imgInputRef = useRef();
+
+  const isOwner = user && recipe.user_id === user.id;
 
   useEffect(() => { loadReviews(); }, [recipe.id]);
 
@@ -667,17 +690,54 @@ function RecipeDetail({ recipe, token, user, onUpdate, showToast, onAddToCart, i
     setSubmitting(false);
   }
 
+  async function handleImageChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingImg(true);
+    await onImageUpdate(file);
+    setUploadingImg(false);
+  }
+
   const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : (recipe.ingredients || "").split("\n").filter(Boolean);
   const steps = Array.isArray(recipe.steps) ? recipe.steps : (recipe.steps || "").split("\n").filter(Boolean);
 
   return (
     <>
-      <div className="modal-hero-img">
+      <input ref={imgInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImageChange} />
+      <div className="modal-hero-img" style={{ position: "relative" }}>
         {recipe.image_url ? <img src={recipe.image_url} alt={recipe.title} /> : "🍴"}
+        {isOwner && (
+          <button
+            onClick={() => imgInputRef.current.click()}
+            style={{
+              position: "absolute", bottom: "0.75rem", right: "0.75rem",
+              background: "rgba(74,55,40,0.85)", color: "white", border: "none",
+              padding: "0.4rem 0.9rem", borderRadius: "2px", cursor: "pointer",
+              fontSize: "0.8rem", fontFamily: "Jost, sans-serif", letterSpacing: "0.05em"
+            }}
+          >
+            {uploadingImg ? "Hleð upp..." : "📷 Skipta um mynd"}
+          </button>
+        )}
       </div>
       <div className="modal-body">
         <div className="modal-cat">{recipe.category}</div>
-        <h2 className="modal-title">{recipe.title}</h2>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", marginBottom: "0.75rem" }}>
+          <h2 className="modal-title" style={{ margin: 0 }}>{recipe.title}</h2>
+          {isOwner && (
+            <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0, paddingTop: "0.4rem" }}>
+              {!confirmDelete ? (
+                <button className="btn btn-danger btn-sm" onClick={() => setConfirmDelete(true)}>🗑 Eyða</button>
+              ) : (
+                <>
+                  <span style={{ fontSize: "0.8rem", color: "var(--rust)", alignSelf: "center" }}>Ertu viss?</span>
+                  <button className="btn btn-danger btn-sm" onClick={onDelete}>Já, eyða</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(false)}>Hætta við</button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
         <div style={{ marginBottom: "0.75rem" }}>
           <button
             className={`btn btn-sm ${inCart ? "btn-ghost" : "btn-forest"}`}
