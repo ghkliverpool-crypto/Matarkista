@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 const SUPABASE_URL = "https://hmorgmxjcxyeawbiucyw.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_jEH66k44WA5ONh2TrEhejQ_3DahiTU5";
 
+
 // ─── SUPABASE CLIENT ──────────────────────────────────────────────────────────
 async function supabase(path, options = {}) {
   const url = `${SUPABASE_URL}/rest/v1${path}`;
@@ -1048,51 +1049,97 @@ function AddRecipeForm({ token, userId, onSuccess }) {
 }
 
 // ─── SHOPPING LIST ────────────────────────────────────────────────────────────
+const SHOP_CATEGORIES = [
+  { key: "kjot", label: "🥩 Kjöt & Fiskur" },
+  { key: "graenmeti", label: "🥦 Grænmeti & Ávextir" },
+  { key: "mjolk", label: "🥛 Mjólkurvörur" },
+  { key: "þurr", label: "🌾 Þurrvörur & Brauð" },
+  { key: "sosur", label: "🧂 Sósur & Krydd" },
+  { key: "annað", label: "🛒 Annað" },
+];
+
+async function classifyIngredients(ingredients) {
+  const prompt = `Þú ert að flokka innkaupalista á íslensku í 6 flokka.
+Flokkar: kjot (kjöt, fiskur, seafood), graenmeti (grænmeti, ávextir, kryddjurtir ferskar), mjolk (mjólk, rjómi, ost, smjör, egg, skyr, jógúrt), þurr (hveiti, pasta, hrísgrjón, brauð, kornflökkur, þurrkar, niðursoðið, olía, edik), sosur (krydd, salt, pipar, sósur, dressingar, sykur, hunang), annað (allt annað).
+
+Skildu frá sem JSON fylki þar sem hvert stak er {"text": "...", "category": "..."}.
+Hráefni: ${JSON.stringify(ingredients)}
+Svaraðu AÐEINS með JSON fylki, engan annan texta.`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || "[]";
+    return JSON.parse(text.replace(/```json|```/g, "").trim());
+  } catch {
+    // Fallback: put everything in "annað"
+    return ingredients.map(i => ({ text: i, category: "annað" }));
+  }
+}
+
 function ShoppingList({ recipes, onClose, showToast }) {
-  const [items, setItems] = useState(() => mergeIngredients(recipes));
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("kjot");
+
+  useEffect(() => {
+    async function load() {
+      const allIngredients = [];
+      recipes.forEach(r => {
+        const ings = Array.isArray(r.ingredients)
+          ? r.ingredients
+          : (r.ingredients || "").split("\n").filter(Boolean);
+        ings.forEach(ing => allIngredients.push(ing));
+      });
+      // Deduplicate
+      const unique = [...new Set(allIngredients)];
+      const classified = await classifyIngredients(unique);
+      setItems(classified.map(i => ({ ...i, id: Math.random().toString(36).slice(2), checked: false })));
+      setLoading(false);
+    }
+    load();
+  }, []);
 
   function toggleItem(id) {
     setItems(prev => prev.map(it => it.id === id ? { ...it, checked: !it.checked } : it));
   }
 
-  function copyToClipboard() {
-    const text = recipes.map(r => {
-      const ings = items.filter(i => i.from === r.title && !i.checked).map(i => "• " + i.text).join("\n");
-      return ings ? `${r.title}:\n${ings}` : null;
-    }).filter(Boolean).join("\n\n");
-    navigator.clipboard.writeText(text).then(() => showToast("Listi afritaður!"));
-  }
-
-  async function openReminders() {
-    const unchecked = items.filter(i => !i.checked);
-    if (unchecked.length === 0) { showToast("Engir hlutar á listanum!"); return; }
-
-    const text = recipes.map(r => {
-      const ings = items.filter(i => i.from === r.title && !i.checked).map(i => "• " + i.text).join("\n");
-      return ings ? `${r.title}:\n${ings}` : null;
-    }).filter(Boolean).join("\n\n");
-
-    // Use Web Share API if available (iOS Safari) — opens native share sheet incl. Reminders
+  async function shareCategory(cat) {
+    const catItems = items.filter(i => i.category === cat.key && !i.checked);
+    if (catItems.length === 0) { showToast("Engir hlutar í þessum flokk!"); return; }
+    const text = catItems.map(i => "• " + i.text).join("\n");
     if (navigator.share) {
       try {
-        await navigator.share({ title: "Innkaupalisti", text });
-        showToast("Deilt!");
-      } catch (e) {
-        // User cancelled — no error needed
-      }
+        await navigator.share({ title: cat.label, text });
+      } catch {}
     } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(text).then(() => showToast("Listi afritaður — límdu inn í Reminders!"));
+      navigator.clipboard.writeText(text).then(() => showToast("Listi afritaður!"));
     }
   }
 
-  // Group by recipe
-  const byRecipe = recipes.map(r => ({
-    recipe: r,
-    items: items.filter(i => i.from === r.title)
-  }));
+  async function shareAll() {
+    const text = SHOP_CATEGORIES.map(cat => {
+      const catItems = items.filter(i => i.category === cat.key && !i.checked);
+      return catItems.length ? `${cat.label}:\n${catItems.map(i => "• " + i.text).join("\n")}` : null;
+    }).filter(Boolean).join("\n\n");
+    if (navigator.share) {
+      try { await navigator.share({ title: "Innkaupalisti", text }); } catch {}
+    } else {
+      navigator.clipboard.writeText(text).then(() => showToast("Allir listar afritaðir!"));
+    }
+  }
 
-  const uncheckedCount = items.filter(i => !i.checked).length;
+  const activeCat = SHOP_CATEGORIES.find(c => c.key === activeTab);
+  const activeItems = items.filter(i => i.category === activeTab);
+  const uncheckedTotal = items.filter(i => !i.checked).length;
 
   return (
     <>
@@ -1101,29 +1148,72 @@ function ShoppingList({ recipes, onClose, showToast }) {
         {recipes.map(r => <span key={r.id} className="shop-recipe-tag">{r.title}</span>)}
       </p>
 
-      {byRecipe.map(({ recipe, items: rItems }) => (
-        <div key={recipe.id} className="shop-section">
-          <div className="shop-section-title">{recipe.title}</div>
-          {rItems.map(item => (
-            <div key={item.id} className={`shop-item ${item.checked ? "checked" : ""}`}>
-              <input type="checkbox" checked={item.checked} onChange={() => toggleItem(item.id)} />
-              <span>{item.text}</span>
-            </div>
-          ))}
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+          Flokka hráefni...
         </div>
-      ))}
+      ) : (
+        <>
+          {/* CATEGORY TABS */}
+          <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginBottom: "1.25rem" }}>
+            {SHOP_CATEGORIES.map(cat => {
+              const count = items.filter(i => i.category === cat.key && !i.checked).length;
+              if (count === 0 && activeTab !== cat.key) return null;
+              return (
+                <button
+                  key={cat.key}
+                  onClick={() => setActiveTab(cat.key)}
+                  style={{
+                    padding: "0.35rem 0.75rem", borderRadius: "20px", border: "1px solid var(--border)",
+                    background: activeTab === cat.key ? "var(--dark-brown)" : "var(--warm-white)",
+                    color: activeTab === cat.key ? "var(--cream)" : "var(--text-muted)",
+                    cursor: "pointer", fontSize: "0.78rem", fontFamily: "Jost, sans-serif",
+                    transition: "all 0.15s"
+                  }}
+                >
+                  {cat.label} {count > 0 && <span style={{ opacity: 0.7 }}>({count})</span>}
+                </button>
+              );
+            })}
+          </div>
 
-      <div className="shop-actions">
-        <button className="btn btn-primary" onClick={copyToClipboard}>
-          📋 Afrita lista ({uncheckedCount})
-        </button>
-        <button className="btn btn-forest" onClick={openReminders}>
-          📤 Deila / Reminders
-        </button>
-      </div>
-      <p className="reminders-note">
-        <strong>Til að senda í Reminders á iPhone/iPad:</strong> Smelltu á „Deila / Reminders" — iOS Share Sheet opnast og þú velur Reminders þar. Eða smelltu á „Afrita lista" og límdu inn handvirkt.
-      </p>
+          {/* ACTIVE CATEGORY ITEMS */}
+          <div className="shop-section">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+              <div className="shop-section-title" style={{ marginBottom: 0 }}>{activeCat?.label}</div>
+              <button
+                onClick={() => shareCategory(activeCat)}
+                style={{
+                  background: "none", border: "1px solid var(--border)", borderRadius: "2px",
+                  padding: "0.25rem 0.6rem", fontSize: "0.75rem", cursor: "pointer",
+                  color: "var(--forest)", fontFamily: "Jost, sans-serif"
+                }}
+              >
+                📤 Deila lista
+              </button>
+            </div>
+            {activeItems.length === 0 ? (
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "0.5rem 0" }}>Engir hlutar í þessum flokk.</p>
+            ) : (
+              activeItems.map(item => (
+                <div key={item.id} className={`shop-item ${item.checked ? "checked" : ""}`}>
+                  <input type="checkbox" checked={item.checked} onChange={() => toggleItem(item.id)} />
+                  <span>{item.text}</span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="shop-actions">
+            <button className="btn btn-primary" onClick={shareAll}>
+              📤 Deila öllum listum ({uncheckedTotal})
+            </button>
+          </div>
+          <p className="reminders-note">
+            Smelltu á „Deila lista" til að deila einum flokk, eða „Deila öllum listum" fyrir alla. iOS Share Sheet opnast — veldu Reminders þar.
+          </p>
+        </>
+      )}
     </>
   );
 }
