@@ -341,7 +341,7 @@ function Toast({ msg }) {
   return <div className="toast">{msg}</div>;
 }
 
-const CATEGORIES = ["Allt", "Aðalréttur", "Fiskréttur", "Forréttur", "Súpa", "Eftirréttir", "Pasta", "Hamburgarar", "Tacos", "Hátíðarmatur", "Meðlæti", "Bakkelsi", "Drykkur"];
+const CATEGORIES = ["Allt", "Forréttur", "Aðalréttur", "Meðlæti", "Súpa", "Eftirrétt", "Bakkelsi", "Drykkur"];
 
 // ─── SHOPPING LIST HELPERS ────────────────────────────────────────────────────
 function mergeIngredients(recipes) {
@@ -1063,27 +1063,27 @@ function ShoppingList({ recipes, onClose, showToast }) {
     navigator.clipboard.writeText(text).then(() => showToast("Listi afritaður!"));
   }
 
-  async function openReminders() {
+  function openReminders() {
     const unchecked = items.filter(i => !i.checked);
-    if (unchecked.length === 0) { showToast("Engir hlutar á listanum!"); return; }
+    if (unchecked.length === 0) { showToast("Engir listar til að senda!"); return; }
+    // Build reminders:// URL — opens Apple Reminders with items
+    const listName = "Innkaup";
+    const itemsText = unchecked.map(i => encodeURIComponent(i.text)).join("&");
+    // Try x-apple-reminderkit URL scheme (works in Safari on iPhone)
+    const url = `reminders://x-callback-url/add?title=${encodeURIComponent(unchecked[0].text)}&list=${encodeURIComponent(listName)}`;
+    window.open(url, "_blank");
+    showToast("Opnar Reminders app...");
+  }
 
-    const text = recipes.map(r => {
-      const ings = items.filter(i => i.from === r.title && !i.checked).map(i => "• " + i.text).join("\n");
-      return ings ? `${r.title}:\n${ings}` : null;
-    }).filter(Boolean).join("\n\n");
-
-    // Use Web Share API if available (iOS Safari) — opens native share sheet incl. Reminders
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "Innkaupalisti", text });
-        showToast("Deilt!");
-      } catch (e) {
-        // User cancelled — no error needed
-      }
-    } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(text).then(() => showToast("Listi afritaður — límdu inn í Reminders!"));
-    }
+  function openAllReminders() {
+    // Open each item one by one — user will be prompted per item
+    const unchecked = items.filter(i => !i.checked);
+    unchecked.forEach((item, idx) => {
+      setTimeout(() => {
+        window.open(`reminders://x-callback-url/add?title=${encodeURIComponent(item.text)}&list=${encodeURIComponent("Innkaup")}`, "_blank");
+      }, idx * 800);
+    });
+    showToast(`Opnar ${unchecked.length} færslur í Reminders...`);
   }
 
   // Group by recipe
@@ -1118,11 +1118,12 @@ function ShoppingList({ recipes, onClose, showToast }) {
           📋 Afrita lista ({uncheckedCount})
         </button>
         <button className="btn btn-forest" onClick={openReminders}>
-          📤 Deila / Reminders
+          📱 Opna í Reminders
         </button>
       </div>
       <p className="reminders-note">
-        <strong>Til að senda í Reminders á iPhone/iPad:</strong> Smelltu á „Deila / Reminders" — iOS Share Sheet opnast og þú velur Reminders þar. Eða smelltu á „Afrita lista" og límdu inn handvirkt.
+        <strong>iPhone leiðbeiningar:</strong> Smelltu á „Opna í Reminders" — virkar best í Safari á iPhone. 
+        Eða smelltu á „Afrita lista" og límdu inn í Reminders handvirkt.
       </p>
     </>
   );
