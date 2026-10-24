@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://hmorgmxjcxyeawbiucyw.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_jEH66k44WA5ONh2TrEhejQ_3DahiTU5";
+const VINKISTAN_URL = "https://vinkistan.vercel.app";
 
 
 // ─── SUPABASE CLIENT ──────────────────────────────────────────────────────────
@@ -425,10 +426,25 @@ export default function App() {
   };
 
   useEffect(() => {
-    const saved = localStorage.getItem("uppskriftir_session");
-    if (saved) {
-      const { user: u, access_token } = JSON.parse(saved);
-      setUser(u); setToken(access_token);
+    // Innskráning flutt úr Vínkistunni: aðgangsmiðinn kemur aftan við # (fer aldrei til netþjóns).
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const fluttur = hash.get("fra") === "vinkistan" ? hash.get("t") : null;
+    if (fluttur) {
+      window.history.replaceState(null, "", window.location.pathname);
+      fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${fluttur}` } })
+        .then(res => (res.ok ? res.json() : null))
+        .then(u => {
+          if (!u?.id) return;
+          setUser(u); setToken(fluttur);
+          localStorage.setItem("uppskriftir_session", JSON.stringify({ user: u, access_token: fluttur }));
+        })
+        .catch(() => {});
+    } else {
+      const saved = localStorage.getItem("uppskriftir_session");
+      if (saved) {
+        const { user: u, access_token } = JSON.parse(saved);
+        setUser(u); setToken(access_token);
+      }
     }
     fetchRecipes();
   }, []);
@@ -477,6 +493,7 @@ export default function App() {
               <>
                 <span className="user-badge">Innskráð(ur) sem <strong>{user.email?.split("@")[0]}</strong></span>
                 <button className="btn btn-primary btn-sm" onClick={() => setView("add")}>+ Uppskrift</button>
+                <a className="btn btn-ghost btn-sm" style={{ textDecoration: "none", display: "inline-block" }} href={`${VINKISTAN_URL}/auth/fra-matarkistu#t=${encodeURIComponent(token || "")}`}>Vínkistan</a>
                 <button className="btn btn-ghost btn-sm" onClick={logout}>Útskrá</button>
               </>
             ) : (
