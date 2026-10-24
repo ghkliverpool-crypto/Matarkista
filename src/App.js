@@ -414,6 +414,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("home");
   const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const [opnaUppskrift, setOpnaUppskrift] = useState(null); // úr tengli frá Vínkistunni
   const [toast, setToast] = useState(null);
   const [filter, setFilter] = useState("Allt");
   const [search, setSearch] = useState("");
@@ -429,8 +430,9 @@ export default function App() {
     // Innskráning flutt úr Vínkistunni: aðgangsmiðinn kemur aftan við # (fer aldrei til netþjóns).
     const hash = new URLSearchParams(window.location.hash.slice(1));
     const fluttur = hash.get("fra") === "vinkistan" ? hash.get("t") : null;
+    if (hash.get("uppskrift")) setOpnaUppskrift(hash.get("uppskrift"));
+    if (window.location.hash) window.history.replaceState(null, "", window.location.pathname);
     if (fluttur) {
-      window.history.replaceState(null, "", window.location.pathname);
       fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${fluttur}` } })
         .then(res => (res.ok ? res.json() : null))
         .then(u => {
@@ -448,6 +450,14 @@ export default function App() {
     }
     fetchRecipes();
   }, []);
+
+  // Opna uppskrift sem Vínkistan vísaði á, þegar uppskriftirnar hafa hlaðist.
+  useEffect(() => {
+    if (!opnaUppskrift || recipes.length === 0) return;
+    const r = recipes.find(x => x.id === opnaUppskrift);
+    if (r) { setSelectedRecipe(r); setView("recipe"); }
+    setOpnaUppskrift(null);
+  }, [opnaUppskrift, recipes]);
 
   async function fetchRecipes() {
     setLoading(true);
@@ -667,6 +677,64 @@ function RecipeCard({ recipe, onClick, inCart, onToggleCart }) {
   );
 }
 
+// ─── VÍN MEÐ RÉTTINUM (úr Vínkistunni) ───────────────────────────────────────
+// Sýnir vín sem hafa verið smökkuð með þessum rétti. Aðgangsreglur Vínkistunnar (RLS)
+// sjá til þess að aðeins meðlimir vínhópsins fá gögn; aðrir sjá ekki neitt.
+function VinMedRetti({ recipeId, token }) {
+  const [vin, setVin] = useState([]);
+
+  useEffect(() => {
+    if (!token) { setVin([]); return; }
+    let haett = false;
+    (async () => {
+      try {
+        const [smakkanir, medlimir] = await Promise.all([
+          supabase(`/vin_smakkanir?uppskrift_id=eq.${recipeId}&select=einkunn,user_id,vin_vin(id,nafn,framleidandi,argangur)&order=dags.desc`, { token }),
+          supabase(`/vin_medlimir?select=user_id,birtingarnafn`, { token }),
+        ]);
+        const nofn = new Map((medlimir || []).map(m => [m.user_id, m.birtingarnafn]));
+        const hopad = new Map();
+        for (const s of smakkanir || []) {
+          if (!s.vin_vin) continue;
+          const v = hopad.get(s.vin_vin.id) || { ...s.vin_vin, einkunnir: [], hverjir: new Set() };
+          v.einkunnir.push(s.einkunn);
+          if (nofn.get(s.user_id)) v.hverjir.add(nofn.get(s.user_id));
+          hopad.set(s.vin_vin.id, v);
+        }
+        const listi = [...hopad.values()]
+          .map(v => ({ ...v, medal: v.einkunnir.reduce((a, b) => a + b, 0) / v.einkunnir.length }))
+          .sort((a, b) => b.medal - a.medal);
+        if (!haett) setVin(listi);
+      } catch { if (!haett) setVin([]); }
+    })();
+    return () => { haett = true; };
+  }, [recipeId, token]);
+
+  if (vin.length === 0) return null;
+  return (
+    <div style={{ marginBottom: "1.5rem" }}>
+      <h3 className="section-title">Vín sem við höfum drukkið með þessu</h3>
+      {vin.map(v => (
+        <a key={v.id}
+          href={`${VINKISTAN_URL}/auth/fra-matarkistu#t=${encodeURIComponent(token)}&aftur=${encodeURIComponent("/vin/" + v.id)}`}
+          style={{ display: "block", padding: "0.6rem 0", borderBottom: "1px solid var(--border)", color: "inherit", textDecoration: "none" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "baseline" }}>
+            <span style={{ fontSize: "0.95rem" }}>
+              {v.framleidandi ? <span style={{ color: "var(--text-muted)" }}>{v.framleidandi} · </span> : null}
+              {v.nafn}{v.argangur ? ` ${v.argangur}` : ""}
+            </span>
+            <Stars rating={v.medal} />
+          </div>
+          <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
+            {v.einkunnir.length === 1 ? "1 smökkun" : `${v.einkunnir.length} smakkanir`}
+            {v.hverjir.size ? ` · ${[...v.hverjir].join(", ")}` : ""}
+          </div>
+        </a>
+      ))}
+    </div>
+  );
+}
+
 // ─── RECIPE DETAIL ────────────────────────────────────────────────────────────
 function RecipeDetail({ recipe, token, user, onUpdate, showToast, onAddToCart, inCart, onDelete, onImageUpdate }) {
   const [reviews, setReviews] = useState([]);
@@ -788,6 +856,8 @@ function RecipeDetail({ recipe, token, user, onUpdate, showToast, onAddToCart, i
             <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", lineHeight: 1.7, marginBottom: "1.5rem" }}>{recipe.notes}</p>
           </>
         )}
+
+        <VinMedRetti recipeId={recipe.id} token={token} />
 
         <div className="reviews-section">
           <h3 className="section-title">Umsagnir ({reviews.length})</h3>
